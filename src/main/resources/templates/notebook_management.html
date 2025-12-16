@@ -1,0 +1,392 @@
+<!-- src/main/resources/templates/notebook_management.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题集管理 - 知错</title>
+    <!-- 引入外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        neutral: {
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">    @layer utilities {
+        .tab-active {
+            @apply text-primary;
+        }
+        .tab-inactive {
+            @apply text-neutral-500;
+        }
+    }
+    </style>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/90 transition-all;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .form-input {
+                @apply w-full p-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-neutral-800 min-h-screen flex flex-col">
+<!-- 顶部导航栏 -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/mistake" class="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <div class="text-primary text-2xl">
+                <i class="fa fa-book"></i>
+            </div>
+            <h1 class="text-xl font-bold text-neutral-800">知错</h1>
+        </a>
+
+        <!-- 搜索框 -->
+        <div class="hidden md:flex items-center flex-1 max-w-md mx-8">
+            <div class="relative w-full">
+                <input type="text" placeholder="搜索错题集..." id="searchInput"
+                       class="w-full pl-10 pr-4 py-2 rounded-full border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"></i>
+            </div>
+        </div>
+
+        <nav class="flex items-center space-x-4">
+            <button id="addNotebookBtn" class="btn-primary flex items-center space-x-1">
+                <i class="fa fa-plus"></i>
+                <span>添加错题集</span>
+            </button>
+            <div class="relative group">
+                <button class="flex items-center space-x-1 p-1 rounded-full hover:bg-neutral-100">
+                    <img th:src="${currentUser?.avatar ?: '/images/default-avatar.png'}"
+                         alt="用户头像"
+                         class="w-8 h-8 rounded-full object-cover">
+                    <span class="hidden md:inline font-medium" th:text="${currentUser?.username ?: '未知用户'}">用户名</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="flex-1 container mx-auto px-4 py-6 pb-16 md:pb-0">
+    <h2 class="text-xl font-bold mb-6">错题集管理</h2>
+
+    <!-- 错题集列表 -->
+    <div id="notebooksList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 加载状态 -->
+        <div class="text-center py-10 col-span-full" id="loadingIndicator">
+            <i class="fa fa-spinner fa-spin text-primary text-2xl mb-2"></i>
+            <p>正在加载错题集...</p>
+        </div>
+    </div>
+    <!-- 在 </main> 标签后添加底部导航栏 -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50">
+        <div class="grid grid-cols-4 py-2">
+            <a href="/mistake" class="flex flex-col items-center justify-center py-2 tab-item tab-active" data-tab="home">
+                <i class="fa fa-home text-xl"></i>
+                <span class="text-xs mt-1">主页</span>
+            </a>
+            <a href="/mistake/review" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="review">
+                <i class="fa fa-refresh text-xl"></i>
+                <span class="text-xs mt-1">复习</span>
+            </a>
+            <a href="/mistake/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="mistakes">
+                <i class="fa fa-list-alt text-xl"></i>
+                <span class="text-xs mt-1">错题</span>
+            </a>
+            <a href="/notebook/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="notebooks">
+                <i class="fa fa-book text-xl"></i>
+                <span class="text-xs mt-1">错题集</span>
+            </a>
+        </div>
+    </div>
+
+</main>
+
+<!-- 添加错题集模态框 -->
+<div id="addNotebookModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg max-w-md w-full m-4">
+        <div class="p-5 border-b border-neutral-200 flex justify-between items-center">
+            <h3 class="text-lg font-bold">添加错题集</h3>
+            <button id="closeModalBtn" class="text-neutral-500 hover:text-neutral-700">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="p-5">
+            <form id="addNotebookForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">错题集名称 <span class="text-red-500">*</span></label>
+                    <input type="text" name="name" id="notebookName" class="form-input" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">描述</label>
+                    <textarea name="description" id="notebookDescription" rows="3" class="form-input"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelAddBtn" class="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-all">
+                        取消
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fa fa-save mr-1"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+    // 页面加载时获取错题集列表
+    document.addEventListener('DOMContentLoaded', function() {
+        loadNotebooks();
+
+        // 绑定事件
+        document.getElementById('addNotebookBtn').addEventListener('click', function() {
+            document.getElementById('addNotebookModal').classList.remove('hidden');
+            document.getElementById('addNotebookModal').classList.add('flex');
+        });
+
+        document.getElementById('closeModalBtn').addEventListener('click', closeAddModal);
+        document.getElementById('cancelAddBtn').addEventListener('click', closeAddModal);
+
+        document.getElementById('addNotebookForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            addNotebook();
+        });
+
+        document.getElementById('searchInput').addEventListener('input', debounce(function() {
+            loadNotebooks();
+        }, 300));
+
+        document.getElementById('loadMoreBtn').addEventListener('click', function() {
+            if (hasMore && !isLoading) {
+                loadMistakes(currentPage + 1, true);
+            }
+        });
+
+        window.addEventListener('scroll', debounce(function() {
+            // 检查是否滚动到底部
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+
+            // 当距离底部小于100px时加载更多
+            if (scrollTop + windowHeight >= documentHeight - 100 && hasMore && !isLoading) {
+                loadMistakes(currentPage + 1, true);
+            }
+        }, 200));
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取当前页面路径
+        const currentPath = window.location.pathname;
+
+        // 定义路径与tab的映射关系
+        const pathTabMap = {
+            '/mistake': 'home',
+            '/mistake/': 'home',
+            '/mistake/review': 'review',
+            '/mistake/manage': 'mistakes',
+            '/notebook/manage': 'notebooks'
+        };
+
+        // 获取当前应该激活的tab
+        let activeTab = 'home'; // 默认激活主页
+
+        // 根据当前路径确定激活的tab
+        for (const [path, tab] of Object.entries(pathTabMap)) {
+            if (currentPath === path) {
+                activeTab = tab;
+                break;
+            }
+        }
+
+        // 获取所有tab项
+        const tabItems = document.querySelectorAll('.tab-item');
+
+        // 移除所有tab的激活状态
+        tabItems.forEach(item => {
+            item.classList.remove('tab-active');
+            item.classList.add('tab-inactive');
+        });
+
+        // 为当前tab添加激活状态
+        const activeTabItem = document.querySelector(`.tab-item[data-tab="${activeTab}"]`);
+        if (activeTabItem) {
+            activeTabItem.classList.remove('tab-inactive');
+            activeTabItem.classList.add('tab-active');
+        }
+    });
+    // 加载错题集列表
+    function loadNotebooks() {
+        const search = document.getElementById('searchInput').value.trim();
+
+        // 显示加载指示器
+        document.getElementById('notebooksList').innerHTML = `
+                <div class="text-center py-10 col-span-full">
+                    <i class="fa fa-spinner fa-spin text-primary text-2xl mb-2"></i>
+                    <p>正在加载错题集...</p>
+                </div>
+            `;
+
+        let url = '/notebook/list';
+        if (search) {
+            url += '?search=' + encodeURIComponent(search);
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(notebooks => {
+                const listContainer = document.getElementById('notebooksList');
+                listContainer.innerHTML = '';
+
+                if (notebooks.length === 0) {
+                    listContainer.innerHTML = `
+                            <div class="text-center py-10 col-span-full text-neutral-500">
+                                <i class="fa fa-book fa-3x mb-3"></i>
+                                <p>没有找到错题集</p>
+                                <button onclick="document.getElementById('addNotebookBtn').click()" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg">
+                                    创建第一个错题集
+                                </button>
+                            </div>
+                        `;
+                    return;
+                }
+
+                // 添加错题集到列表
+                notebooks.forEach(notebook => {
+                    listContainer.appendChild(createNotebookCard(notebook));
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('notebooksList').innerHTML = `
+                        <div class="text-center py-10 col-span-full text-neutral-500">
+                            <i class="fa fa-exclamation-triangle text-yellow-500 text-3x mb-3"></i>
+                            <p>加载错题集失败，请重试</p>
+                            <button onclick="loadNotebooks()" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg">
+                                重试
+                            </button>
+                        </div>
+                    `;
+            });
+    }
+
+    // 创建错题集卡片
+    function createNotebookCard(notebook) {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 card-hover cursor-pointer';
+        card.addEventListener('click', function() {
+            // 点击错题集跳转到错题管理页面，并筛选该错题集的错题
+            window.location.href = `/mistake/manage?notebookId=${notebook.id}`;
+        });
+
+        card.innerHTML = `
+                <div class="p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-bold text-lg">${notebook.name}</h3>
+                        <span class="text-neutral-500 text-sm">
+                            <i class="fa fa-book"></i>
+                        </span>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-neutral-600 text-sm">${notebook.description || '暂无描述'}</p>
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm text-neutral-500">
+                        <span>点击查看</span>
+                        <span>
+                            <i class="fa fa-arrow-right"></i>
+                        </span>
+                    </div>
+                </div>
+            `;
+
+        return card;
+    }
+
+    // 添加错题集
+    function addNotebook() {
+        const name = document.getElementById('notebookName').value.trim();
+        const description = document.getElementById('notebookDescription').value.trim();
+
+        if (!name) {
+            alert('请输入错题集名称');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+
+        fetch('/notebook/add', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('错题集添加成功');
+                    closeAddModal();
+                    loadNotebooks(); // 重新加载错题集列表
+                } else {
+                    alert('添加失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败，请重试');
+            });
+    }
+
+    // 关闭添加错题集模态框
+    function closeAddModal() {
+        document.getElementById('addNotebookModal').classList.add('hidden');
+        document.getElementById('addNotebookModal').classList.remove('flex');
+        document.getElementById('addNotebookForm').reset();
+    }
+
+    // 工具函数：防抖
+    function debounce(func, wait) {
+        let timeout;
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
+</script>
+</body>
+</html>

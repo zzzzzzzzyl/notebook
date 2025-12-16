@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>所有错题 - 知错</title>
+    <!-- 引入外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        neutral: {
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">    @layer utilities {
+        .tab-active {
+            @apply text-primary;
+        }
+        .tab-inactive {
+            @apply text-neutral-500;
+        }
+    }
+    </style>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/90 transition-all;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .form-input {
+                @apply w-full p-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            @media (max-width: 767px) {
+                .mobile-search-hidden {
+                    display: none;
+                }
+
+                header .btn-primary span {
+                    font-size: 0.875rem;
+                }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-neutral-800 min-h-screen flex flex-col">
+<!-- 顶部导航栏 -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/mistake" class="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <div class="text-primary text-2xl">
+                <i class="fa fa-book"></i>
+            </div>
+            <h1 class="hidden md:block text-xl font-bold text-neutral-800">知错</h1>
+        </a>
+        <!-- 搜索框 - 在小屏幕上移到底部 -->
+        <div class="flex items-center md:flex-1 md:max-w-md md:mx-8">
+            <div class="relative w-full">
+                <input type="text" placeholder="搜索错题、知识点..." id="searchInput"
+                       class="w-full pl-10 pr-4 py-2 rounded-full border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary/50 text-base">
+                <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"></i>
+            </div>
+        </div>
+
+        <nav class="flex items-center space-x-2 md:space-x-4">
+            <a href="/mistake/add" class="btn-primary flex items-center space-x-1 py-2 px-3 text-sm">
+                <i class="fa fa-plus"></i>
+                <span class="hidden sm:inline">添加错题</span>
+            </a>
+            <div class="relative group">
+                <button class="flex items-center space-x-1 p-1 rounded-full hover:bg-neutral-100">
+                    <img th:src="${currentUser?.avatar ?: '/images/default-avatar.png'}"
+                         alt="用户头像"
+                         class="w-8 h-8 rounded-full object-cover hidden md:inline">
+                    <span class="hidden lg:inline font-medium" th:text="${currentUser?.username ?: '未知用户'}">用户名</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="flex-1 container mx-auto px-4 py-6 pb-16 md:pb-0">
+    <h2 class="text-xl font-bold mb-6">所有错题</h2>
+
+    <!-- 筛选条件 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-neutral-200">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">科目</label>
+                <select id="subjectFilter" class="form-input">
+                    <option value="">全部科目</option>
+                    <option value="数学">数学</option>
+                    <option value="语文">语文</option>
+                    <option value="英语">英语</option>
+                    <option value="物理">物理</option>
+                    <option value="化学">化学</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">熟练程度</label>
+                <select id="difficultyFilter" class="form-input">
+                    <option value="">全部</option>
+                    <option value="1">很陌生</option>
+                    <option value="2">较陌生</option>
+                    <option value="3">一般</option>
+                    <option value="4">较熟悉</option>
+                    <option value="5">已掌握</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">错题集</label>
+                <label for="notebookFilter"></label><select id="notebookFilter" class="form-input">
+                <option value="">全部错题集</option>
+                <!-- 错题集选项将通过JavaScript动态加载 -->
+            </select>
+            </div>
+            <div class="flex items-end">
+                <button id="resetFilterBtn" class="w-full px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-all">
+                    重置筛选
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错题列表 -->
+    <div id="mistakesList" class="space-y-4">
+        <!-- 加载状态 -->
+        <div class="text-center py-10" id="loadingIndicator">
+            <i class="fa fa-spinner fa-spin text-primary text-2xl mb-2"></i>
+            <p>正在加载错题...</p>
+        </div>
+    </div>
+
+    <!-- 加载更多 -->
+    <div class="mt-6 text-center">
+        <button id="loadMoreBtn" class="px-6 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 transition-all hidden">
+            加载更多
+        </button>
+    </div>
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50">
+        <div class="grid grid-cols-4 py-2">
+            <a href="/mistake" class="flex flex-col items-center justify-center py-2 tab-item tab-active" data-tab="home">
+                <i class="fa fa-home text-xl"></i>
+                <span class="text-xs mt-1">主页</span>
+            </a>
+            <a href="/mistake/review" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="review">
+                <i class="fa fa-refresh text-xl"></i>
+                <span class="text-xs mt-1">复习</span>
+            </a>
+            <a href="/mistake/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="mistakes">
+                <i class="fa fa-list-alt text-xl"></i>
+                <span class="text-xs mt-1">错题</span>
+            </a>
+            <a href="/notebook/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="notebooks">
+                <i class="fa fa-book text-xl"></i>
+                <span class="text-xs mt-1">错题集</span>
+            </a>
+        </div>
+    </div>
+</main>
+
+<!-- 编辑错题模态框 -->
+<div id="editModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <div class="p-5 border-b border-neutral-200 flex justify-between items-center">
+            <h3 class="text-lg font-bold">编辑错题</h3>
+            <button id="closeModalBtn" class="text-neutral-500 hover:text-neutral-700">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+        <div class="p-5">
+            <form id="editMistakeForm" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="id" id="editMistakeId">
+
+                <!-- 科目和章节 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">科目 <span class="text-red-500">*</span></label>
+                        <label for="editSubject"></label><select name="subject" id="editSubject" class="form-input" required>
+                        <option value="">请选择科目</option>
+                        <option value="数学">数学</option>
+                        <option value="语文">语文</option>
+                        <option value="英语">英语</option>
+                        <option value="物理">物理</option>
+                        <option value="化学">化学</option>
+                        <option value="生物">生物</option>
+                        <option value="历史">历史</option>
+                        <option value="地理">地理</option>
+                        <option value="政治">政治</option>
+                    </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">题型</label>
+                        <label for="editQuestionType"></label><select name="questionType" id="editQuestionType" class="form-input">
+                        <option value="">请选择题型</option>
+                        <option value="选择题">选择题</option>
+                        <option value="填空题">填空题</option>
+                        <option value="解答题">解答题</option>
+                        <option value="判断题">判断题</option>
+                        <option value="计算题">计算题</option>
+                        <option value="应用题">应用题</option>
+                        <option value="实验题">实验题</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">章节</label>
+                        <input type="text" name="chapter" id="editChapter" placeholder="例如：函数、语法..." class="form-input">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">选择错题集</label>
+                        <select name="notebookId" id="editNotebookSelect" class="form-input">
+                            <option value="">不选择错题集</option>
+                            <!-- 错题集选项将通过JavaScript动态加载 -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 题目图片 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">题目图片</label>
+                    <div class="flex flex-col sm:flex-row gap-4 items-start">
+                        <div class="flex-1">
+                            <input type="file" name="image" accept="image/*" class="form-input w-full">
+                            <!-- 添加隐藏字段来保存原始图片路径 -->
+                            <input type="hidden" id="originalImagePath" name="originalImagePath">
+                        </div>
+                    </div>
+                    <div id="editImagePreview" class="mt-2 hidden">
+                        <img src="" alt="预览" class="max-h-48 rounded-lg border border-neutral-200">
+                    </div>
+                </div>
+
+                <!-- 题目内容 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">题目内容 <span class="text-red-500">*</span></label>
+                    <textarea name="question" id="editQuestion" rows="4" placeholder="请输入题目内容..." class="form-input" required></textarea>
+                </div>
+
+                <!-- 答案部分 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">我的答案</label>
+                        <input type="text" name="myAnswer" id="editMyAnswer" placeholder="请输入你的答案..." class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">正确答案 <span class="text-red-500">*</span></label>
+                        <input type="text" name="correctAnswer" id="editCorrectAnswer" placeholder="请输入正确答案..." class="form-input" required>
+                    </div>
+                </div>
+
+                <!-- 解析 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">解析/备注</label>
+                    <textarea name="explanation" id="editExplanation" rows="3" placeholder="请输入解析或备注..." class="form-input"></textarea>
+                </div>
+
+                <!-- 笔记 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">笔记</label>
+                    <textarea name="note" id="editNote" rows="2" placeholder="请输入笔记..." class="form-input"></textarea>
+                </div>
+
+                <!-- 错误次数和难度设置 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">错误次数</label>
+                        <input type="number" name="mistakeCount" id="editMistakeCount" min="1" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">难度等级</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="range" name="difficulty" min="1" max="5" value="3" class="w-full" id="editDifficultySlider">
+                            <span id="editDifficultyValue" class="text-neutral-700 w-6 text-center">3</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-neutral-500 mt-1">
+                            <span>简单</span>
+                            <span>困难</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 掌握状态 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">掌握状态</label>
+                    <select name="isMastered" id="editIsMastered" class="form-input">
+                        <option value="false">未掌握</option>
+                        <option value="true">已掌握</option>
+                    </select>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelEditBtn" class="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-all">
+                        取消
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fa fa-save mr-1"></i> 保存修改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMore = true;
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取当前页面路径
+        const currentPath = window.location.pathname;
+
+        // 定义路径与tab的映射关系
+        const pathTabMap = {
+            '/mistake': 'home',
+            '/mistake/': 'home',
+            '/mistake/review': 'review',
+            '/mistake/manage': 'mistakes',
+            '/notebook/manage': 'notebooks'
+        };
+
+        // 获取当前应该激活的tab
+        let activeTab = 'home'; // 默认激活主页
+
+        // 根据当前路径确定激活的tab
+        for (const [path, tab] of Object.entries(pathTabMap)) {
+            if (currentPath === path) {
+                activeTab = tab;
+                break;
+            }
+        }
+
+        // 获取所有tab项
+        const tabItems = document.querySelectorAll('.tab-item');
+
+        // 移除所有tab的激活状态
+        tabItems.forEach(item => {
+            item.classList.remove('tab-active');
+            item.classList.add('tab-inactive');
+        });
+
+        // 为当前tab添加激活状态
+        const activeTabItem = document.querySelector(`.tab-item[data-tab="${activeTab}"]`);
+        if (activeTabItem) {
+            activeTabItem.classList.remove('tab-inactive');
+            activeTabItem.classList.add('tab-active');
+        }
+    });
+
+    // 页面加载时获取错题列表
+    document.addEventListener('DOMContentLoaded', function() {
+        // 检查URL参数，显示成功消息
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === '1') {
+            alert('错题添加成功！');
+            // 清除URL参数
+            history.replaceState(null, null, window.location.pathname);
+        }
+
+        // 加载错题集筛选器选项，然后设置筛选器值并加载错题
+        loadNotebookFilter().then(() => {
+            // 如果URL中有搜索参数，设置到搜索框中
+            const searchParam = urlParams.get('search');
+            if (searchParam) {
+                document.getElementById('searchInput').value = decodeURIComponent(searchParam);
+            }
+
+            // 如果URL中有科目参数，设置到筛选器中
+            const subjectParam = urlParams.get('subject');
+            if (subjectParam) {
+                document.getElementById('subjectFilter').value = subjectParam;
+            }
+
+            // 如果URL中有难度参数，设置到筛选器中
+            const difficultyParam = urlParams.get('difficulty');
+            if (difficultyParam) {
+                document.getElementById('difficultyFilter').value = difficultyParam;
+            }
+
+            // 如果URL中有错题集参数，设置到筛选器中
+            const notebookIdParam = urlParams.get('notebookId');
+            if (notebookIdParam) {
+                document.getElementById('notebookFilter').value = notebookIdParam;
+            }
+
+            // 加载错题列表
+            loadMistakes();
+        });
+
+        // 筛选事件监听
+        document.getElementById('subjectFilter').addEventListener('change', function() {
+            loadMistakes(1);
+        });
+        document.getElementById('difficultyFilter').addEventListener('change', function() {
+            loadMistakes(1);
+        });
+        document.getElementById('searchInput').addEventListener('input', debounce(function() {
+            loadMistakes(1);
+        }, 300));
+        document.getElementById('notebookFilter').addEventListener('change', function() {
+            loadMistakes(1);
+        });
+
+        // 重置筛选按钮点击事件
+        document.getElementById('resetFilterBtn').addEventListener('click', function() {
+            document.getElementById('subjectFilter').value = '';
+            document.getElementById('difficultyFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('notebookFilter').value = '';
+            // 清除URL参数
+            history.replaceState(null, null, window.location.pathname);
+            loadMistakes(1);
+        });
+
+        // 添加搜索按钮点击事件（如果存在搜索按钮）
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function() {
+                loadMistakes(1);
+            });
+        }
+
+        // 添加回车键搜索支持
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadMistakes(1);
+            }
+        });
+
+        // 绑定滑块事件
+        document.getElementById('editDifficultySlider').addEventListener('input', function() {
+            document.getElementById('editDifficultyValue').textContent = this.value;
+        });
+
+        // 关闭模态框
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelEditBtn').addEventListener('click', closeModal);
+
+        // 表单提交事件
+        document.getElementById('editMistakeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            fetch('/mistake/update', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('错题更新成功');
+                        closeModal();
+                        loadMistakes(); // 重新加载错题列表
+                    } else {
+                        alert('更新失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('更新失败，请重试');
+                });
+        });
+
+        // 加载错题集列表到编辑表单
+        loadEditNotebooks();
+    });
+
+    // 修改 loadNotebookFilter 函数，返回 Promise
+    function loadNotebookFilter() {
+        return fetch('/notebook/list')
+            .then(response => response.json())
+            .then(notebooks => {
+                const select = document.getElementById('notebookFilter');
+                notebooks.forEach(notebook => {
+                    const option = document.createElement('option');
+                    option.value = notebook.id;
+                    option.textContent = notebook.name;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('加载错题集失败:', error);
+            });
+    }
+
+
+    // 修改 loadMistakes 函数
+    function loadMistakes(page = 1, append = false) {
+        const subject = document.getElementById('subjectFilter').value;
+        const difficulty = document.getElementById('difficultyFilter').value;
+        const search = document.getElementById('searchInput').value.trim();
+        const notebookId = document.getElementById('notebookFilter').value; // 添加错题集筛选
+
+        // 显示加载指示器
+        const listContainer = document.getElementById('mistakesList');
+        if (page === 1 && !append) {
+            listContainer.innerHTML = `        <div class="text-center py-10" id="loadingIndicator">
+            <i class="fa fa-spinner fa-spin text-primary text-2xl mb-2"></i>
+            <p>正在加载错题...</p>
+        </div>
+    `;
+            hasMore = true; // 重置hasMore状态
+        } else if (append) {
+            // 显示加载更多指示器
+            document.getElementById('loadMoreBtn').innerHTML = '<i class="fa fa-spinner fa-spin"></i> 加载中...';
+        }
+
+        // 构建请求URL，包含筛选参数
+        let url = '/mistake/list';
+        const params = new URLSearchParams();
+
+        if (subject) params.append('subject', subject);
+        if (difficulty) params.append('difficulty', difficulty);
+        if (search) params.append('search', search);
+        if (notebookId) params.append('notebookId', notebookId); // 添加错题集参数
+
+        if (params.toString()) {
+            url += '?' + params.toString();
+            // 更新浏览器URL但不刷新页面
+            history.replaceState(null, null, '?' + params.toString());
+        } else {
+            // 如果没有参数，清除URL参数
+            history.replaceState(null, null, window.location.pathname);
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    const mistakes = JSON.parse(xhr.responseText);
+                    const listContainer = document.getElementById('mistakesList');
+
+                    // 清空列表
+                    if (page === 1 && !append) {
+                        listContainer.innerHTML = '';
+                    }
+                    if (mistakes.length === 0) {
+                        listContainer.innerHTML = `
+                            <div class="text-center py-10 text-neutral-500">
+                                <i class="fa fa-search fa-3x mb-3"></i>
+                                <p>没有找到错题</p>
+                            </div>
+                        `;
+                        document.getElementById('loadMoreBtn').classList.add('hidden');
+                        return;
+                    }
+
+                    // 添加错题到列表
+                    mistakes.forEach(mistake => {
+                        listContainer.appendChild(createMistakeCardFromJava(mistake));
+                    });
+
+                    // 隐藏加载更多按钮（因为我们暂时没有分页）
+                    document.getElementById('loadMoreBtn').classList.add('hidden');
+                } catch (e) {
+                    console.error('解析错误:', e);
+                    document.getElementById('mistakesList').innerHTML = `
+                        <div class="text-center py-10 text-neutral-500">
+                            <i class="fa fa-exclamation-triangle text-yellow-500 text-3x mb-3"></i>
+                            <p>数据解析错误，请重试</p>
+                        </div>
+                    `;
+                }
+            } else {
+                document.getElementById('mistakesList').innerHTML = `
+                    <div class="text-center py-10 text-neutral-500">
+                        <i class="fa fa-exclamation-triangle text-yellow-500 text-3x mb-3"></i>
+                        <p>加载错题失败，请重试</p>
+                        <button onclick="loadMistakes()" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg">
+                            重试
+                        </button>
+                    </div>
+                `;
+            }
+        };
+
+        xhr.onerror = function() {
+            document.getElementById('mistakesList').innerHTML = `
+                <div class="text-center py-10 text-neutral-500">
+                    <i class="fa fa-exclamation-triangle text-yellow-500 text-3x mb-3"></i>
+                    <p>网络错误，请检查连接</p>
+                    <button onclick="loadMistakes(${page})" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg">
+                        重试
+                    </button>
+                </div>
+            `;
+        };
+
+        xhr.send();
+    }
+
+    // 添加新函数 createMistakeCardFromJava
+// 修改 createMistakeCardFromJava 函数中的相关信息显示部分
+function createMistakeCardFromJava(mistake) {
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 card-hover';
+    card.addEventListener('click', function(e) {
+        if (!e.target.closest('button')) {
+            window.location.href = '/mistake/view?id=' + mistake.id;
+        }
+    });
+    card.style.cursor = 'pointer';
+
+    const imageHtml = mistake.questionImage ? `<img src="${mistake.questionImage}" alt="题目图片" class="max-h-48 rounded-lg mb-2">` : '';
+    const explanationHtml = mistake.explanation ? `<p class="mt-2 text-neutral-600 italic">解析：${mistake.explanation}</p>` : '';
+    const masteredText = mistake.isMastered ? '已掌握' : '未掌握';
+    const masteredClass = mistake.isMastered ? 'text-green-500' : 'text-red-500';
+
+    card.innerHTML = `
+        <div class="p-4 md:p-5">
+            <div class="flex justify-between items-start mb-3 ">
+                <div class="flex items-center w-full flex-nowrap overflow-hidden">
+    <!-- 科目标签：禁止收缩 + 超长时自身省略（兜底） -->
+                <span class="flex items-center px-2 py-1 text-xs rounded-full
+                 ${getSubjectColor(mistake.subject)} mr-2 flex-shrink-0
+                 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+        ${mistake.subject}
+                </span>
+    <!-- 章节标签：禁止收缩 + 超长时自身省略（兜底） -->
+                <span class="flex items-center px-2 py-1 text-xs rounded-full
+                 bg-neutral-100 text-neutral-700 mr-2 flex-shrink-0
+                 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                    ${mistake.chapter || '未分类'}
+                </span>
+    <!-- 错题集标签：唯一可收缩项 + 优先收缩 + 溢出省略 -->
+                <span class="flex items-center px-2 py-1 text-xs rounded-full
+                 bg-secondary/10 text-secondary flex-shrink-1 flex-grow-0
+                 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                    ${mistake.notebookName || '无错题集'}
+                </span>
+                </div>
+                <span class="text-neutral-500 text-sm text-sm whitespace-nowrap px-2">  错误次数: ${mistake.mistakeCount}</span>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-neutral-800 mb-2">${mistake.question}</p>
+                ${imageHtml}
+                <div class="bg-neutral-50 p-3 rounded-lg text-sm border border-neutral-200">
+                    <p class="mb-1"><span class="text-red-500">我的答案：</span>${mistake.myAnswer || '未填写'}</p>
+                    <p><span class="text-green-500">正确答案：</span>${mistake.correctAnswer}</p>
+                    ${explanationHtml}
+                </div>
+                <div class="mt-2">
+                    <span class="text-neutral-600">笔记：</span>
+                    <p class="text-neutral-800">${mistake.note || '无'}</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mb-4 text-sm">
+                <div>
+                    <span class="text-neutral-600">题型：</span>
+                    <span>${mistake.questionType || '未指定'}</span>
+                </div>
+                <div>
+                    <span class="text-neutral-600">难度：</span>
+                    <span>${mistake.difficulty || '未知'}</span>
+                </div>
+                <div>
+                    <span class="text-neutral-600">掌握状态：</span>
+                    <span class="${masteredClass}">${masteredText}</span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <div class="flex space-x-2">
+                    <button class="text-neutral-600 hover:text-primary p-1" title="编辑" onclick="editMistake(${mistake.id})">
+                        <i class="fa fa-pencil"></i>
+                    </button>
+                    <button class="text-neutral-600 hover:text-red-500 p-1" title="删除" onclick="deleteMistake(${mistake.id}, this.closest('.card-hover'))">
+                        <i class="fa fa-trash-o"></i>
+                    </button>
+                </div>
+                <button class="btn-secondary text-sm py-1" onclick="practiceAgain(${mistake.id})">
+                    再次练习
+                </button>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
+
+
+    // 编辑错题
+    function editMistake(id) {
+        // 发送请求获取错题详细信息
+        fetch(`/mistake/get/${id}`)
+            .then(response => response.json())
+            .then(mistake => {
+                // 填充表单数据
+                document.getElementById('editMistakeId').value = mistake.id;
+                document.getElementById('editSubject').value = mistake.subject || '';
+                document.getElementById('editQuestionType').value = mistake.questionType || '';
+                document.getElementById('editChapter').value = mistake.chapter || '';
+                document.getElementById('editQuestion').value = mistake.question || '';
+                document.getElementById('editMyAnswer').value = mistake.myAnswer || '';
+                document.getElementById('editCorrectAnswer').value = mistake.correctAnswer || '';
+                document.getElementById('editExplanation').value = mistake.explanation || '';
+                document.getElementById('editNote').value = mistake.note || '';
+                document.getElementById('editMistakeCount').value = mistake.mistakeCount || 1;
+                document.getElementById('editDifficultySlider').value = mistake.difficulty || 3;
+                document.getElementById('editIsMastered').value = mistake.isMastered ? 'true' : 'false';
+
+                // 设置错题集
+                document.getElementById('editNotebookSelect').value = mistake.notebookId || '';
+
+                // 更新滑块值显示
+                document.getElementById('editDifficultyValue').textContent = mistake.difficulty || 3;
+
+                // 如果有图片，显示预览
+                const previewDiv = document.getElementById('editImagePreview');
+                if (mistake.questionImage) {
+                    previewDiv.innerHTML = `<img src="${mistake.questionImage}" alt="预览" class="max-h-48 rounded-lg border border-neutral-200">`;
+                    previewDiv.classList.remove('hidden');
+
+                    // 添加隐藏字段保存原始图片路径
+                    let hiddenInput = document.getElementById('originalImagePath');
+                    if (!hiddenInput) {
+                        hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.id = 'originalImagePath';
+                        hiddenInput.name = 'originalImagePath';
+                        document.getElementById('editMistakeForm').appendChild(hiddenInput);
+                    }
+                    hiddenInput.value = mistake.questionImage;
+                } else {
+                    previewDiv.classList.add('hidden');
+                }
+
+                // 显示模态框
+                const modal = document.getElementById('editModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('获取错题信息失败');
+            });
+    }
+
+    // 动态加载错题集列表到编辑表单
+    function loadEditNotebooks() {
+        fetch('/notebook/list')
+            .then(response => response.json())
+            .then(notebooks => {
+                const select = document.getElementById('editNotebookSelect');
+                // 清空现有选项
+                select.innerHTML = '<option value="">不选择错题集</option>';
+
+                notebooks.forEach(notebook => {
+                    const option = document.createElement('option');
+                    option.value = notebook.id;
+                    option.textContent = notebook.name;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('加载错题本失败:', error);
+            });
+    }
+
+    // 关闭模态框
+    function closeModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // 删除错题
+    function deleteMistake(id, cardElement) {
+        if (confirm('确定要删除这道错题吗？')) {
+            fetch(`/mistake/delete/${id}`, {
+                method: 'DELETE'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        cardElement.remove();
+                        alert('错题已删除');
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('删除失败，请重试');
+                });
+        }
+    }
+
+    // 再次练习功能
+    function practiceAgain(id) {
+        window.location.href = `/mistake/test?id=${id}`;
+    }
+
+    // 工具函数：格式化日期
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('zh-CN', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // 工具函数：获取难度/重要度文本
+    function getLevelText(level) {
+        const levels = ['', '很陌生', '较陌生', '一般', '较熟悉', '已掌握'];
+        return levels[level] || '一般';
+    }
+
+    // 工具函数：根据科目获取颜色类
+    function getSubjectColor(subject) {
+        const colors = {
+            '数学': 'bg-blue-100 text-blue-700',
+            '语文': 'bg-red-100 text-red-700',
+            '英语': 'bg-green-100 text-green-700',
+            '物理': 'bg-purple-100 text-purple-700',
+            '化学': 'bg-yellow-100 text-yellow-700'
+        };
+        return colors[subject] || 'bg-gray-100 text-gray-700';
+    }
+
+    // 工具函数：防抖
+    function debounce(func, wait) {
+        let timeout;
+        return function() {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+</script>
+
+</body>
+</html>

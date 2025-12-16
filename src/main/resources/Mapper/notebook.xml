@@ -1,0 +1,33 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.example.notebook.dao.notebookMapper">
+    <!-- 获取所有错题集 -->
+    <select id="getAllNotebooks" resultType="org.example.notebook.pojo.notebook">
+        SELECT * FROM notebooks
+    </select>
+
+    <!-- 创建错题集 -->
+    <insert id="createNotebook" parameterType="org.example.notebook.pojo.notebook" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notebooks (name, description)
+        VALUES (#{name}, #{description})
+    </insert>
+    <!-- 创建用户与错题集的关联 -->
+    <insert id="addUserNotebook">
+        INSERT INTO user_notebooks (user_id, notebook_id) VALUES (#{userId}, #{notebookId})
+    </insert>
+    <!-- 根据错题集ID获取错题 -->
+    <select id="getMistakesByNotebookId" resultType="org.example.notebook.pojo.mistake">
+        SELECT m.*, n.name as notebookName
+        FROM mistakes m
+                 LEFT JOIN notebooks n ON m.notebook_id = n.id
+        WHERE m.notebook_id = #{notebookId} AND m.isdeleted = 0
+    </select>
+    <select id="getUserNotebooks" resultType="org.example.notebook.pojo.notebook">
+        SELECT n.*
+        FROM notebooks n
+                 JOIN user_notebooks un ON n.id = un.notebook_id
+        WHERE un.user_id = #{userId}
+    </select>
+</mapper>

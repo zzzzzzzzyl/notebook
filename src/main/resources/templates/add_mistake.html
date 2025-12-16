@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加错题 - 知错</title>
+    <!-- 引入外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        neutral: {
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">    @layer utilities {
+        .tab-active {
+            @apply text-primary;
+        }
+        .tab-inactive {
+            @apply text-neutral-500;
+        }
+    }
+    </style>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all;
+            }
+            .btn-secondary {
+                @apply bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/90 transition-all;
+            }
+            .form-input {
+                @apply w-full p-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            .drag-over {
+                @apply bg-blue-50;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+</head>
+<body class="bg-gray-50 text-neutral-800 min-h-screen flex flex-col"><!-- 顶部导航栏 -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/mistake" class="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <div class="text-primary text-2xl">
+                <i class="fa fa-book"></i>
+            </div>
+            <h1 class="text-xl font-bold text-neutral-800">知错</h1>
+        </a>
+
+        <!-- 添加搜索框 - 中等屏幕以上显示 -->
+        <div class="hidden md:flex items-center flex-1 max-w-md mx-8">
+            <div class="relative w-full">
+                <input type="text" placeholder="搜索错题、知识点..." id="topSearchInput"
+                       class="w-full pl-10 pr-4 py-2 rounded-full border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"></i>
+            </div>
+        </div>
+
+        <nav class="flex items-center space-x-4">
+            <a href="/" class="text-neutral-600 hover:text-primary">
+                <i class="fa fa-arrow-left mr-1"></i> 返回首页
+            </a>
+            <div class="relative group">
+                <button class="flex items-center space-x-1 p-1 rounded-full hover:bg-neutral-100">
+                    <img th:src="${currentUser?.avatar ?: '/images/default-avatar.png'}"
+                         alt="用户头像"
+                         class="w-8 h-8 rounded-full object-cover">
+                    <span class="hidden md:inline font-medium" th:text="${currentUser?.username ?: '未知用户'}">用户名</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="flex-1 container mx-auto px-4 py-6 pb-16 md:pb-0">    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-6 border border-neutral-200">
+        <h2 class="text-xl font-bold mb-6">添加新错题</h2>
+
+        <!-- 修改表单提交到Spring Boot Controller -->
+        <form id="addMistakeForm" action="/mistake/add" method="post" enctype="multipart/form-data">
+            <!-- 科目和章节 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">科目 <span class="text-red-500">*</span></label>
+                    <select name="subject" class="form-input" required>
+                        <option value="">请选择科目</option>
+                        <option value="数学">数学</option>
+                        <option value="语文">语文</option>
+                        <option value="英语">英语</option>
+                        <option value="物理">物理</option>
+                        <option value="化学">化学</option>
+                        <option value="生物">生物</option>
+                        <option value="历史">历史</option>
+                        <option value="地理">地理</option>
+                        <option value="政治">政治</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">题型</label>
+                    <select name="questionType" class="form-input">
+                        <option value="">请选择题型</option>
+                        <option value="选择题">选择题</option>
+                        <option value="填空题">填空题</option>
+                        <option value="解答题">解答题</option>
+                        <option value="判断题">判断题</option>
+                        <option value="计算题">计算题</option>
+                        <option value="应用题">应用题</option>
+                        <option value="实验题">实验题</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">章节</label>
+                    <input type="text" name="chapter" placeholder="例如：函数、语法..." class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">选择错题集</label>
+                    <select name="notebookId" id="notebookSelect" class="form-input">
+                        <option value="">不选择错题集</option>
+                        <!-- 错题本选项将通过JavaScript动态加载 -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- 题目图片-->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-neutral-700 mb-1">题目图片</label>
+                <div class="flex flex-col sm:flex-row gap-4 items-start">
+                    <div class="flex-1">
+                        <input type="file" name="image" accept="image/*" class="form-input w-full">
+                    </div>
+                    <button type="button" id="ocrButton" class="flex items-center space-x-2 bg-white text-neutral-800 px-4 py-2 rounded-lg border border-neutral-300 hover:bg-neutral-100 transition-all hidden whitespace-nowrap">
+                        <span id="ocrButtonText">识别题目</span>
+                        <!-- 添加加载指示器 -->
+                        <svg class="animate-spin h-4 w-4 text-neutral-800 hidden" id="ocrLoadingSpinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="imagePreview" class="mt-2 hidden">
+                    <img src="" alt="预览" class="max-h-48 rounded-lg border border-neutral-200">
+                </div>
+            </div>
+            <!-- 题目内容 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-neutral-700 mb-1">题目内容 <span class="text-red-500">*</span></label>
+                <textarea name="question" rows="4" placeholder="请输入题目内容..." class="form-input" required></textarea>
+            </div>
+
+            <!-- 答案部分 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">我的答案</label>
+                    <input type="text" name="myAnswer" placeholder="请输入你的答案..." class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">正确答案 <span class="text-red-500">*</span></label>
+                    <input type="text" name="correctAnswer" placeholder="请输入正确答案..." class="form-input" required>
+                </div>
+            </div>
+
+            <!-- 解析 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-neutral-700 mb-1">解析/备注</label>
+                <textarea name="explanation" rows="3" placeholder="请输入解析或备注..." class="form-input"></textarea>
+            </div>
+
+            <!-- 笔记 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-neutral-700 mb-1">笔记</label>
+                <textarea name="note" rows="2" placeholder="请输入笔记..." class="form-input"></textarea>
+            </div>
+
+
+
+            <!-- 难度设置 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-neutral-700 mb-1">难度等级</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="range" name="difficulty" min="1" max="5" value="3" class="w-full" id="difficultySlider">
+                        <span id="difficultyValue" class="text-neutral-700 w-6 text-center">3</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-neutral-500 mt-1">
+                        <span>简单</span>
+                        <span>困难</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <div class="flex justify-end space-x-3">
+                <button type="button" class="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-all" onclick="window.location.href='/mistake'">
+                    取消
+                </button>
+                <button type="submit" class="btn-primary">
+                    <i class="fa fa-save mr-1"></i> 保存错题
+                </button>
+            </div>
+        </form>
+    </div>
+    <!-- 在 </main> 标签后添加底部导航栏 -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50">
+        <div class="grid grid-cols-4 py-2">
+            <a href="/mistake" class="flex flex-col items-center justify-center py-2 tab-item tab-active" data-tab="home">
+                <i class="fa fa-home text-xl"></i>
+                <span class="text-xs mt-1">主页</span>
+            </a>
+            <a href="/mistake/review" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="review">
+                <i class="fa fa-refresh text-xl"></i>
+                <span class="text-xs mt-1">复习</span>
+            </a>
+            <a href="/mistake/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="mistakes">
+                <i class="fa fa-list-alt text-xl"></i>
+                <span class="text-xs mt-1">错题</span>
+            </a>
+            <a href="/notebook/manage" class="flex flex-col items-center justify-center py-2 tab-item tab-inactive" data-tab="notebooks">
+                <i class="fa fa-book text-xl"></i>
+                <span class="text-xs mt-1">错题集</span>
+            </a>
+        </div>
+    </div>
+
+    <div id="cropperModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-4 rounded-lg max-w-2xl w-full">
+            <h3 class="text-lg font-semibold mb-4">裁剪图片</h3>
+            <div class="mb-4">
+                <img id="cropperImage" src="" alt="待裁剪图片" style="max-height: 60vh;">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button id="cancelCrop" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">取消</button>
+                <button id="confirmCrop" class="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90">确认裁剪</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取当前页面路径
+        const currentPath = window.location.pathname;
+
+        // 定义路径与tab的映射关系
+        const pathTabMap = {
+            '/mistake': 'home',
+            '/mistake/': 'home',
+            '/mistake/review': 'review',
+            '/mistake/manage': 'mistakes',
+            '/notebook/manage': 'notebooks'
+        };
+
+        // 获取当前应该激活的tab
+        let activeTab = 'home'; // 默认激活主页
+
+        // 根据当前路径确定激活的tab
+        for (const [path, tab] of Object.entries(pathTabMap)) {
+            if (currentPath === path) {
+                activeTab = tab;
+                break;
+            }
+        }
+
+        // 获取所有tab项
+        const tabItems = document.querySelectorAll('.tab-item');
+
+        // 移除所有tab的激活状态
+        tabItems.forEach(item => {
+            item.classList.remove('tab-active');
+            item.classList.add('tab-inactive');
+        });
+
+        // 为当前tab添加激活状态
+        const activeTabItem = document.querySelector(`.tab-item[data-tab="${activeTab}"]`);
+        if (activeTabItem) {
+            activeTabItem.classList.remove('tab-inactive');
+            activeTabItem.classList.add('tab-active');
+        }
+    });
+
+    // 处理滑块值显示
+    document.getElementById('difficultySlider').addEventListener('input', function() {
+        document.getElementById('difficultyValue').textContent = this.value;
+    });
+
+    // 加载错题本列表
+    document.addEventListener('DOMContentLoaded', function() {
+        // 加载错题本列表
+        loadNotebooks();
+
+        function loadNotebooks() {
+            fetch('/notebook/list')
+                .then(response => response.json())
+                .then(notebooks => {
+                    const select = document.getElementById('notebookSelect');
+                    notebooks.forEach(notebook => {
+                        const option = document.createElement('option');
+                        option.value = notebook.id;
+                        option.textContent = notebook.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('加载错题本失败:', error);
+                });
+        }
+
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取图片输入元素
+        const imageInput = document.querySelector('input[name="image"]');
+
+        // 阻止默认的拖拽行为
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // 添加拖拽进入时的视觉反馈
+        ['dragenter', 'dragover'].forEach(eventName => {
+            document.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            document.addEventListener(eventName, unhighlight, false);
+        });
+
+        // 页面高亮效果
+        function highlight() {
+            document.body.style.backgroundColor = '#eff6ff'; // blue-50的颜色值
+        }
+
+        function unhighlight() {
+            document.body.style.backgroundColor = ''; // 恢复默认背景色
+        }
+
+        // 处理文件放置事件
+        document.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            // 过滤出图片文件
+            const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+
+            if (imageFiles.length > 0) {
+                // 直接使用原始的 DataTransfer 对象
+                imageInput.files = dt.files;
+
+                // 手动触发 change 事件，激活现有的预览逻辑
+                const event = new Event('change', { bubbles: true });
+                imageInput.dispatchEvent(event);
+            }
+        }
+    });
+    // 图片预览处理
+    document.querySelector('input[name="image"]').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // 显示OCR按钮
+            const ocrButton = document.getElementById('ocrButton');
+            ocrButton.classList.remove('hidden');
+
+            // 创建预览
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('imagePreview');
+                preview.innerHTML = `<img src="${event.target.result}" alt="预览" class="max-h-32 rounded">`;
+                preview.classList.remove('hidden');
+            }
+            reader.readAsDataURL(file);
+        } else {
+            // 隐藏OCR按钮
+            document.getElementById('ocrButton').classList.add('hidden');
+        }
+    });
+
+    // OCR识别功能
+    document.getElementById('ocrButton').addEventListener('click', function() {
+        const imageInput = document.querySelector('input[name="image"]');
+        const file = imageInput.files[0];
+
+        if (!file) {
+            alert('请先选择图片');
+            return;
+        }
+
+        // 获取按钮相关元素
+        const ocrButton = document.getElementById('ocrButton');
+        const ocrButtonText = document.getElementById('ocrButtonText');
+        const ocrLoadingSpinner = document.getElementById('ocrLoadingSpinner');
+
+        // 显示加载状态
+        ocrButtonText.textContent = '识别中...';
+        ocrLoadingSpinner.classList.remove('hidden');
+        ocrButton.disabled = true;
+
+        // 创建FormData对象
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // 发送请求到后端OCR接口
+        fetch('/mistake/ocr', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('OCR完整返回数据:', data); // 查看完整返回数据
+
+                if (data.success) {
+                    // 检查并填充所有可能存在的字段
+                    fillFieldIfExists('subject', data.subject);
+                    fillFieldIfExists('questionType', data.questionType);
+                    fillFieldIfExists('chapter', data.chapter);
+                    fillFieldIfExists('question', data.question);
+                    fillFieldIfExists('correctAnswer', data.correctAnswer);
+                    fillFieldIfExists('explanation', data.explanation);
+
+                } else {
+                    alert('识别失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('识别过程中发生错误: ' + error.message);
+            })
+            .finally(() => {
+                // 恢复按钮原始状态
+                ocrButtonText.textContent = '识别题目';
+                ocrLoadingSpinner.classList.add('hidden');
+                ocrButton.disabled = false;
+            });
+    });
+
+    // 安全填充字段的函数
+    function fillFieldIfExists(fieldName, value) {
+        if (value === undefined || value === null || value === '') {
+            return;
+        }
+
+
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (!field) {
+            return;
+        }
+
+        if (field.tagName === 'SELECT') {
+            // 特殊处理select元素
+            setSelectValueSafely(field, value);
+        } else {
+            // 处理input和textarea元素
+            field.value = value;
+        }
+    }
+
+    // 安全设置select值的函数
+    function setSelectValueSafely(selectElement, value) {
+
+        // 直接按值设置
+        selectElement.value = value;
+
+        // 如果设置失败，尝试按文本匹配
+        if (selectElement.value !== value) {
+            let found = false;
+            for (let i = 0; i < selectElement.options.length; i++) {
+                if (selectElement.options[i].text === value || selectElement.options[i].value === value) {
+                    selectElement.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+            }
+        } else {
+        }
+    }
+
+    // 专门处理select元素的函数
+    function setSelectValue(selectElement, value) {
+        if (!selectElement || !value) return;
+
+        // 方法1: 直接按值匹配
+        if (selectElement.querySelector(`option[value="${value}"]`)) {
+            selectElement.value = value;
+            return;
+        }
+
+        // 方法2: 按文本内容匹配
+        for (let i = 0; i < selectElement.options.length; i++) {
+            if (selectElement.options[i].text === value) {
+                selectElement.selectedIndex = i;
+                return;
+            }
+        }
+
+        // 方法3: 模糊匹配
+        for (let i = 0; i < selectElement.options.length; i++) {
+            if (value.includes(selectElement.options[i].text) ||
+                selectElement.options[i].text.includes(value)) {
+                selectElement.selectedIndex = i;
+                return;
+            }
+        }
+
+        console.log(`无法匹配选项: ${value}`);
+    }
+
+    // 处理表单提交
+    document.getElementById('addMistakeForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // 使用FormData直接提交，支持文件上传
+        const formData = new FormData(this);
+
+        fetch('/mistake/add', {
+            method: 'POST',
+            body: formData  // 直接发送FormData，浏览器会自动设置正确的Content-Type
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('网络响应失败: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 显示弹窗
+                alert(data.message);
+                // 点击确定后重置表单
+                if (data.success) {
+                    document.getElementById('addMistakeForm').reset();
+                    document.getElementById('imagePreview').classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('错误详情:', error);
+                alert('操作失败: ' + error.message);
+            });
+    });
+    // 添加顶部搜索框的功能
+    document.addEventListener('DOMContentLoaded', function() {
+        // 顶部搜索框功能
+        const topSearchInput = document.getElementById('topSearchInput');
+        if (topSearchInput) {
+            // 回车搜索
+            topSearchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch(this.value.trim());
+                }
+            });
+
+            // 添加搜索图标点击事件
+            const searchIcon = topSearchInput.parentElement.querySelector('.fa-search');
+            if (searchIcon) {
+                searchIcon.style.cursor = 'pointer';
+                searchIcon.addEventListener('click', function() {
+                    performSearch(topSearchInput.value.trim());
+                });
+            }
+        }
+
+        // 搜索功能实现
+
+    });
+    function showCropperModal(imageSrc) {
+        const modal = document.getElementById('cropperModal');
+        const image = document.getElementById('cropperImage');
+
+        image.src = imageSrc;
+        modal.classList.remove('hidden');
+
+        // 初始化 Cropper
+        cropper = new Cropper(image, {
+            aspectRatio: NaN, // 允许自由比例裁剪
+            viewMode: 1,
+            autoCropArea: 1,
+        });
+    }
+
+    // 绑定取消按钮事件
+    document.getElementById('cancelCrop').addEventListener('click', function() {
+        document.getElementById('cropperModal').classList.add('hidden');
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    });
+
+    // 绑定确认裁剪按钮事件
+    document.getElementById('confirmCrop').addEventListener('click', function() {
+        if (cropper) {
+            // 获取裁剪后的图片 Blob 数据
+            cropper.getCroppedCanvas().toBlob((blob) => {
+                // 创建一个新的 File 对象替换原来的 input 文件
+                const croppedFile = new File([blob], "cropped-image.jpg", { type: "image/jpeg" });
+
+                // 更新 input 的文件列表
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(croppedFile);
+                document.querySelector('input[name="image"]').files = dataTransfer.files;
+
+                // 显示预览图
+                const preview = document.getElementById('imagePreview');
+                preview.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="预览" class="max-h-32 rounded">`;
+                preview.classList.remove('hidden');
+
+                // 关闭模态框
+                document.getElementById('cropperModal').classList.add('hidden');
+                cropper.destroy();
+                cropper = null;
+            }, 'image/jpeg');
+        }
+    });
+    function performSearch(query) {
+        if (query) {
+            // 跳转到错题管理页面并传递搜索参数
+            window.location.href = `/mistake/manage?search=${encodeURIComponent(query)}`;
+        }
+    }
+</script>
+
+</body>
+</html>

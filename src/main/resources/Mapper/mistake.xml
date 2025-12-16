@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.notebook.dao.mistakeMapper">
+
+    <!-- 错题结果映射 -->
+    <resultMap id="mistakeResultMap" type="org.example.notebook.pojo.mistake">
+        <id column="id" property="id"/>
+        <result column="subject" property="subject"/>
+        <result column="questiontype" property="questionType"/>
+        <result column="chapter" property="chapter"/>
+        <result column="notebook_id" property="notebookId"/>
+        <result column="question" property="question"/>
+        <result column="questionimage" property="questionImage"/>
+        <result column="difficulty" property="difficulty"/>
+        <result column="myanswer" property="myAnswer"/>
+        <result column="correctanswer" property="correctAnswer"/>
+        <result column="explanation" property="explanation"/>
+        <result column="note" property="note"/>
+        <result column="ismastered" property="isMastered"/>
+        <result column="mistakecount" property="mistakeCount"/>
+        <result column="isdeleted" property="isDeleted"/>
+        <result column="created_at" property="createTime"/>
+        <result column="updated_at" property="updateTime"/>
+        <result column="notebookName" property="notebookName"/>
+    </resultMap>
+
+    <!-- 获取所有错题（带筛选条件和用户过滤） -->
+    <select id="getMistakesWithFilters" resultMap="mistakeResultMap">
+        SELECT m.*, n.name as notebookName
+        FROM mistakes m
+        LEFT JOIN notebooks n ON m.notebook_id = n.id
+        JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0 AND um.user_id = #{userId}
+        <if test="subject != null and subject != ''">
+            AND m.subject = #{subject}
+        </if>
+        <if test="difficulty != null">
+            AND m.difficulty = #{difficulty}
+        </if>
+        <if test="search != null and search != ''">
+            AND (m.question LIKE CONCAT('%', #{search}, '%')
+            OR m.subject LIKE CONCAT('%', #{search}, '%')
+            OR m.chapter LIKE CONCAT('%', #{search}, '%')
+            OR n.name LIKE CONCAT('%', #{search}, '%'))
+        </if>
+        <if test="notebookId != null">
+            AND m.notebook_id = #{notebookId}
+        </if>
+        <if test="isMastered != null">
+            AND m.ismastered = #{isMastered}
+        </if>
+        ORDER BY m.created_at DESC
+    </select>
+    <select id="getMistakeByIdAndUserId" resultMap="mistakeResultMap">
+        SELECT m.*, n.name as notebookName, um.user_id
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+                 LEFT JOIN notebooks n ON m.notebook_id = n.id
+        WHERE m.id = #{id} AND um.user_id = #{userId} AND m.isdeleted = 0
+    </select>
+    <!-- 添加错题 -->
+    <insert id="addMistake" parameterType="org.example.notebook.pojo.mistake" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO mistakes (
+            subject, questiontype, chapter, notebook_id, question, questionimage,
+            difficulty, myanswer, correctanswer, explanation, note, ismastered, mistakecount
+        ) VALUES (
+                     #{subject}, #{questionType}, #{chapter}, #{notebookId}, #{question}, #{questionImage},
+                     #{difficulty}, #{myAnswer}, #{correctAnswer}, #{explanation}, #{note}, #{isMastered}, #{mistakeCount}
+                 )
+    </insert>
+    <insert id="insertUserMistake">
+        INSERT INTO user_mistakes (user_id, mistake_id) VALUES (#{userId}, #{mistakeId})
+    </insert>
+    <!-- 软删除错题 -->
+    <update id="softDeleteMistake">
+        UPDATE mistakes SET isdeleted = 1 WHERE id = #{id}
+    </update>
+
+    <!-- 更新错题 -->
+    <update id="updateMistake" parameterType="org.example.notebook.pojo.mistake">
+        UPDATE mistakes
+        SET subject = #{subject},
+            notebook_id = #{notebookId},
+            chapter = #{chapter},
+            questiontype = #{questionType},
+            question = #{question},
+            questionimage = #{questionImage},
+            difficulty = #{difficulty},
+            myanswer = #{myAnswer},
+            correctanswer = #{correctAnswer},
+            explanation = #{explanation},
+            note = #{note},
+            ismastered = #{isMastered}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 标记为已掌握 -->
+    <update id="markAsMastered">
+        UPDATE mistakes SET ismastered = #{isMastered} WHERE id = #{id}
+    </update>
+
+
+    <!-- 获取未掌握错题数量 -->
+    <select id="getUnmasteredMistakes" resultType="int">
+        SELECT COUNT(*) FROM mistakes WHERE isdeleted = 0 AND ismastered = 0
+    </select>
+
+    <!-- 获取本周每天掌握的错题数 -->
+    <select id="getWeeklyMasteredMistakes" resultType="int">
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 6 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 5 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 4 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 3 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 2 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() - INTERVAL 1 DAY AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.updated_at) = CURDATE() AND m.ismastered = 1 AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+    </select>
+    <!-- 增加错题错误次数 -->
+    <update id="incrementMistakeCount">
+        UPDATE mistakes
+        SET mistakecount = mistakecount + 1
+        WHERE id = #{id}
+    </update>
+    <!-- 批量获取错题 -->
+    <select id="getMistakesByIds" resultMap="mistakeResultMap">
+        SELECT m.*, n.name as notebookName
+        FROM mistakes m
+        LEFT JOIN notebooks n ON m.notebook_id = n.id
+        WHERE m.id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND m.isdeleted = 0
+    </select>
+    <!-- 获取总错题数（添加用户过滤） -->
+    <select id="getTotalMistakes" resultType="int">
+        SELECT COUNT(*)
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0 AND um.user_id = #{userId}
+    </select>
+
+    <!-- 获取上周错题数（添加用户过滤） -->
+    <select id="getLastWeekMistakes" resultType="int">
+        SELECT COUNT(*)
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.created_at &lt; DATE_SUB(NOW(), INTERVAL 1 WEEK)
+          AND m.isdeleted = 0
+          AND um.user_id = #{userId}
+    </select>
+
+    <!-- 获取待复习数量（添加用户过滤） -->
+    <select id="getPendingReviewCount" resultType="int">
+        SELECT COUNT(*)
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.ismastered = 0
+          AND m.isdeleted = 0
+          AND um.user_id = #{userId}
+    </select>
+
+    <!-- 获取已掌握数量（添加用户过滤） -->
+    <select id="getMasteredCount" resultType="int">
+        SELECT COUNT(*)
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0
+          AND m.ismastered = 1
+          AND um.user_id = #{userId}
+    </select>
+
+    <!-- 获取薄弱科目（添加用户过滤） -->
+    <select id="getWeakSubject" resultType="string">
+        SELECT m.subject
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0
+          AND m.ismastered = 0
+          AND um.user_id = #{userId}
+        GROUP BY m.subject
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+    </select>
+
+    <!-- 获取指定科目未掌握的题目数（添加用户过滤） -->
+    <select id="getUnmasteredBySubject" resultType="int">
+        SELECT COUNT(*)
+        FROM mistakes m
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0
+          AND m.ismastered = 0
+          AND m.subject = #{subject}
+          AND um.user_id = #{userId}
+    </select>
+
+    <!-- 获取所有错题列表（添加用户过滤） -->
+    <select id="getalllist" resultMap="mistakeResultMap">
+        SELECT m.*, n.name as notebookName
+        FROM mistakes m
+                 LEFT JOIN notebooks n ON m.notebook_id = n.id
+                 JOIN user_mistakes um ON m.id = um.mistake_id
+        WHERE m.isdeleted = 0
+          AND um.user_id = #{userId}
+        ORDER BY m.created_at DESC
+    </select>
+
+    <!-- 获取最近7天每天新增的错题数量（添加用户过滤） -->
+    <select id="getWeeklyNewMistakes" resultType="int">
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 6 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 5 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 4 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 3 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 2 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() - INTERVAL 1 DAY AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+        UNION ALL
+        SELECT COALESCE((SELECT COUNT(*) FROM mistakes m JOIN user_mistakes um ON m.id = um.mistake_id WHERE DATE(m.created_at) = CURDATE() AND m.isdeleted = 0 AND um.user_id = #{userId}), 0)
+    </select>
+</mapper>

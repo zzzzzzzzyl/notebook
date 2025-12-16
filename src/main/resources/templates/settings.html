@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - 知错</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        neutral: {
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all;
+            }
+            .form-input {
+                @apply w-full p-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-neutral-800 min-h-screen flex flex-col">
+<!-- 顶部导航栏 -->
+<header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <div class="text-primary text-2xl">
+                <i class="fa fa-book"></i>
+            </div>
+            <h1 class="text-xl font-bold text-neutral-800">知错</h1>
+        </a>
+
+        <nav class="flex items-center space-x-4">
+            <a href="/" class="text-neutral-600 hover:text-primary">
+                <i class="fa fa-arrow-left mr-1"></i> 返回首页
+            </a>
+            <div class="relative group">
+                <button class="flex items-center space-x-1 p-1 rounded-full hover:bg-neutral-100">
+                    <img th:src="${currentUser?.avatar ?: '/images/default-avatar.png'}"
+                         alt="用户头像"
+                         class="w-8 h-8 rounded-full object-cover">
+                    <span class="hidden md:inline font-medium" th:text="${currentUser?.username ?: '未知用户'}">用户名</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+</header>
+
+<!-- 主内容区 -->
+<main class="flex-1 container mx-auto px-4 py-6">
+    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-6 border border-neutral-200">
+        <h2 class="text-xl font-bold mb-6">账户设置</h2>
+
+        <!-- 头像设置 -->
+        <div class="mb-8">
+            <h3 class="text-lg font-medium mb-4">头像设置</h3>
+            <div class="flex items-center space-x-6">
+                <img th:src="${currentUser?.avatar ?: '/images/default-avatar.png'}"
+                     alt="当前头像"
+                     class="w-20 h-20 rounded-full object-cover">
+                <div>
+                    <form id="avatarForm" enctype="multipart/form-data">
+                        <input type="file" id="avatarFile" name="avatar" accept="image/*" class="hidden">
+                        <label for="avatarFile" class="btn-primary cursor-pointer inline-block">
+                            <i class="fa fa-upload mr-1"></i>选择新头像
+                        </label>
+                        <button type="submit" id="uploadAvatarBtn" class="ml-2 bg-neutral-200 text-neutral-800 px-4 py-2 rounded-lg hover:bg-neutral-300 transition-all hidden">
+                            上传头像
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 密码修改 -->
+        <div class="mb-8">
+            <h3 class="text-lg font-medium mb-4">修改密码</h3>
+            <form id="passwordForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">当前密码</label>
+                        <input type="password" name="currentPassword" class="form-input" required>
+                    </div>
+                    <div></div>
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">新密码</label>
+                        <input type="password" name="newPassword" class="form-input" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-neutral-700 mb-1">确认新密码</label>
+                        <input type="password" name="confirmPassword" class="form-input" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">
+                    <i class="fa fa-save mr-1"></i>保存新密码
+                </button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script>
+    // 头像上传处理
+    document.getElementById('avatarFile').addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            document.getElementById('uploadAvatarBtn').classList.remove('hidden');
+        }
+    });
+
+    // 头像上传表单提交
+    document.getElementById('avatarForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('avatarFile');
+        if (!fileInput.files.length) {
+            alert('请先选择头像文件');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('avatar', fileInput.files[0]);
+
+        fetch('/user/update-avatar', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('头像更新成功');
+                    location.reload();
+                } else {
+                    alert('头像更新失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('头像上传过程中发生错误');
+            });
+    });
+
+    // 密码修改表单提交
+    document.getElementById('passwordForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const newPassword = formData.get('newPassword');
+        const confirmPassword = formData.get('confirmPassword');
+
+        if (newPassword !== confirmPassword) {
+            alert('新密码和确认密码不一致');
+            return;
+        }
+
+        fetch('/user/update-password', {
+            method: 'POST',
+            body: new URLSearchParams({
+                currentPassword: formData.get('currentPassword'),
+                newPassword: newPassword
+            }),
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('密码修改成功');
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    alert('密码修改失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('密码修改过程中发生错误');
+            });
+    });
+</script>
+</body>
+</html>

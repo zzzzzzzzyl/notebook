@@ -1,0 +1,133 @@
+<!-- src/main/resources/templates/login.html -->
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录 - 知错</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        neutral: {
+                            100: '#F3F4F6',
+                            200: '#E5E7EB',
+                            300: '#D1D5DB',
+                            700: '#374151',
+                            800: '#1F2937',
+                            900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-all;
+            }
+            .form-input {
+                @apply w-full p-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-md">
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+            <i class="fa fa-book text-primary text-2xl"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-neutral-800">知错</h1>
+        <p class="text-neutral-500 mt-2">智能错题本系统</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-8">
+        <h2 class="text-2xl font-bold text-center mb-6">用户登录</h2>
+
+        <form id="loginForm" action="/login" method="post">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-neutral-700 mb-2">用户名或邮箱</label>
+                <input type="text" name="username" required
+                       class="form-input" placeholder="请输入用户名或邮箱">
+            </div>
+
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-sm font-medium text-neutral-700">密码</label>
+                    <a href="#" class="text-sm text-primary hover:underline">忘记密码？</a>
+                </div>
+                <input type="password" name="password" required
+                       class="form-input" placeholder="请输入密码">
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" class="rounded border-neutral-300 text-primary focus:ring-primary/50">
+                    <span class="ml-2 text-sm text-neutral-600">记住我</span>
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary w-full py-3">
+                登录
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-neutral-600">
+                还没有账户？
+                <a href="/register" class="text-primary font-medium hover:underline">立即注册</a>
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-8 text-center text-sm text-neutral-500">
+        <p>© 2023 知错. 保留所有权利.</p>
+    </div>
+</div>
+
+<script>    // 处理登录表单提交
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const loginData = {
+        username: formData.get('username'),
+        password: formData.get('password')
+    };
+
+    // 发送登录请求
+// 发送登录请求
+    fetch('/api/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(loginData)
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 登录成功，跳转到主页
+                window.location.href = '/';
+            } else {
+                // 显示错误信息
+                alert(data.message || '登录失败');
+            }
+        })
+        .catch(error => {
+            console.error('登录错误:', error);
+            alert('登录过程中发生错误，请重试');
+        });
+});
+</script>
+</body>
+</html>
